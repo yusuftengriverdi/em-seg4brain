@@ -8,11 +8,20 @@ import nibabel as nib
 
 from tqdm import tqdm
 
-def scale_to_intensity_range(normalized_data, intensity_min=0, intensity_max=255):
-    # Scale the data to the specified intensity range
-    scaled_data = normalized_data * (intensity_max - intensity_min) + intensity_min
-    return scaled_data
+def scale_to_intensity_range(data, intensity_min=0, intensity_max=255):
+    """
+    Scale the data to the specified intensity range.
 
+    Args:
+        normalized_data (numpy.ndarray): Input data to be scaled.
+        intensity_min (int, optional): Minimum intensity value. Defaults to 0.
+        intensity_max (int, optional): Maximum intensity value. Defaults to 255.
+
+    Returns:
+        numpy.ndarray: Scaled data.
+    """
+    scaled_data = data * (intensity_max - intensity_min) + intensity_min
+    return scaled_data
 def scale_and_save_probabilistic_maps(input_folder, output_folder, intensity_min=0, intensity_max=255):
     # Create the output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
