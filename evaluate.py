@@ -9,19 +9,15 @@ import csv
 from tqdm import tqdm
 import viewer
 
-def readCases(numCase):
+def readCases(numCase, setting):
     # Reads ground truth and predicted segmentation for a given case
-    gtPath = 'resultSet/param0009/resultLabels_nii/' + str(numCase) + '.nii'
+    gtPath = 'testingSet/testingLabels/' + str(numCase) + '.nii'
     lab = np.array(nib.nifti1.load(gtPath).get_fdata())
 
-    filePath = 'preds/label_prop-em-atlas-into-mira/' + str(numCase) + '.nii'
+    filePath = f'predictionSet/{setting}/' + str(numCase) + '.nii'
     seg = np.array(nib.nifti1.load(filePath).get_fdata()).astype(np.int8)
 
     slice_id = 150
-
-    # fig = viewer.multi_slice_viewer(seg, "???")
-    # print(np.unique(seg))
-    # fig1 = plt.figure()
 
     # Visualization code (assuming it's correct)
     # plt.set_cmap('gray')
@@ -62,8 +58,10 @@ def evaluateTissue(seg, mask):
     return diceScore3dMaskordered(seg, mask)
 
 if __name__ == '__main__':
+
+    setting = 'atlas_into_em_label_propagation-custom'
     # Set up the CSV file for logging
-    log_file_path = "dice_score_label_prop-em-atlas-into-mira.csv"
+    log_file_path = f"dice_score_{setting}.csv"
 
     with open(log_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -72,14 +70,14 @@ if __name__ == '__main__':
         writer.writerow(["Image", "Tissue 1", "Tissue 2", "Tissue 3", "Average Score"])
 
         sum = np.array([0, 0, 0, 0])
-        image_list = ["1003", "1004", "1005", 
-                      "1018", "1019", "1023", "1024", "1025", "1038", "1039", "1101", "1104",
-                      "1107", "1110", "1113", "1113", "1116", "1119", "1122", "1125", "1128"
+        image_list = ["1003", "1004", "1005", "1018", "1019", "1023", "1024", "1025", "1038", 
+                      "1039", "1101", "1104", "1107", "1110", "1113", "1113", "1116", "1119", 
+                      "1122", "1125", "1128"
                       ]
 
         for i in tqdm(image_list):
             print(f"Processing image: {i}")
-            seg, lab = readCases(i)
+            seg, lab = readCases(i, setting=setting)
             score = evaluateTissue(seg, lab)
             sum = sum + np.array(score)
             print(score)
@@ -88,7 +86,7 @@ if __name__ == '__main__':
             writer.writerow([i] + score)
 
             # Display the images (assuming you have a function to display them)
-            # plt.show()
+            plt.show()
 
         # Calculate and write the average score to the CSV file
         average_score = sum / len(image_list)

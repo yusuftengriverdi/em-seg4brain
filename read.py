@@ -8,7 +8,7 @@ import nibabel as nib
 import SimpleITK as sitk
 import cv2
 
-def readNIftI(which='Labels', set='testing'):
+def readNIftI(which='Labels', set='testing', directory=None):
     """
     Reads NIfTI files (Labels, Masks, or Images) and converts them to numpy arrays.
 
@@ -30,7 +30,7 @@ def readNIftI(which='Labels', set='testing'):
 
     imgs = []
     tags = []
-    directory = f'{set}Set/{set}{which}/'
+    if not directory: directory = f'{set}Set/{set}{which}/'
     for path in tqdm(os.listdir(directory)):
         tags.append(path.split(".nii")[0])
         path = os.path.join(directory, path)

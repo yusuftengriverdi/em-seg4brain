@@ -16,7 +16,7 @@ def process_results(image_dir, label_dir, output_dir):
 
     # Iterate over the images in the result directory
     for image_name in os.listdir(image_dir):
-        if image_name.endswith('.img'):
+        if image_name.endswith('.nii'):
             image_path = os.path.join(image_dir, image_name)
             image_basename = os.path.splitext(image_name)[0]
             
@@ -31,7 +31,7 @@ def process_results(image_dir, label_dir, output_dir):
             labels = []
 
             for label_type in ["_CSF", "_WM", "_GM"]:
-                label_path = os.path.join(label_dir, f"{image_basename}{label_type}.img")
+                label_path = os.path.join(label_dir, f"{image_basename}{label_type}.nii")
 
                 # Check if the label file exists
                 if not os.path.exists(label_path):
@@ -52,7 +52,7 @@ def process_results(image_dir, label_dir, output_dir):
             processed_image = np.argmax(stacked_image, axis=-1).astype(np.float32)
 
             # Save the processed image
-            output_path = os.path.join(output_dir, f"{image_basename}.img")
+            output_path = os.path.join(output_dir, f"{image_basename}.nii")
             nib.save(nib.Nifti1Image(processed_image, affine=np.eye(4)), output_path)
 
             print(f"Processed image '{image_basename}' saved to '{output_path}'")

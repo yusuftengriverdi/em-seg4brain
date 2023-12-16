@@ -3,6 +3,7 @@ import numpy as np
 import nibabel as nib
 from read import *
 from tqdm import tqdm
+
 def multiply_and_save_images(output_folder='testingSet/testingStripped'):
     """
     Multiply mask images with raw images and save them in the specified output folder.

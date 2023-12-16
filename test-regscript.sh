@@ -6,14 +6,14 @@ start_time=$(date +%s)
 # Define the paths and parameters
 elastix_fixed_input_dir="testingSet/testingStripped/"
 
-transformix_input_dir_list=("referenceSpace/norm/probabilisticMap1.nii" "referenceSpace/norm/probabilisticMap2.nii" "referenceSpace/norm/probabilisticMap3.nii")
+transformix_input_dir_list=("referenceSpace/probabilisticMap1.nii" "referenceSpace/probabilisticMap2.nii" "referenceSpace/probabilisticMap3.nii")
 
-elastix_moving_input_dir="referenceSpace/meanIntensityImage.nii"
-param_affine="params/Par0009affine.txt"
-param_elastic="params/Par0009elastic.txt"
+elastix_moving_input_dir="referenceSpace/template.nii"
+param_affine="params/Par0010affine.txt"
+param_elastic="params/Par0010bspline.txt"
 
-elastix_output_dir="registeredSet/custom/param0009/registeredImages/"
-transformix_label_output_dir="registeredSet/custom/param0009/registeredLabels/"
+elastix_output_dir="registeredSet/mni/param0010/registeredImages/"
+transformix_label_output_dir="registeredSet/mni/param0010/registeredLabels/"
 
 
 # List of image filenames to process
@@ -43,6 +43,30 @@ for image_file in "${image_list[@]}"; do
     if [ ! -d "$transformix_label_output_subdir" ]; then
       mkdir -p "$transformix_label_output_subdir"
     fi
+
+    #!/bin/bash
+
+    # Specify the path to your elastix parameter file
+    parameter_file="$elastix_output_subdir/TransformParameters.1.txt"
+
+    # Backup the original parameter file
+    cp "$parameter_file" "${parameter_file}.bak"
+
+    # Use awk to remove duplicate lines.
+    awk '!/ResultImagePixelType/' "$parameter_file" > tmpfile && mv tmpfile "$parameter_file"
+    awk '!/ResultImageFormat/' "$parameter_file" > tmpfile && mv tmpfile "$parameter_file"
+
+    # Define the new parameters
+    new_parameters="
+    (ResultImageFormat \"nii\")
+    (ResultImagePixelType \"float\")
+    "
+    # Append the new parameters to the parameter file
+    echo "$new_parameters" >> "$parameter_file"
+
+    # Display a message indicating the modification
+    echo "Modified $parameter_file with new parameters."
+
     # Run the transformix command for the current image with the specified comment
     transformix -in "$map_file" -out "$transformix_label_output_subdir" -tp "$elastix_output_subdir/TransformParameters.1.txt"
   done

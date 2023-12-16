@@ -6,7 +6,13 @@ from scipy.stats import multivariate_normal
 from tqdm import tqdm 
 from viewer import *
 
-def load_image(content_dir='../p1/raw/', modalities=['T1', 'T2_FLAIR'], case_number=1, mask_dir = None):
+import os
+import numpy as np
+import nibabel as nib
+import cv2
+
+
+def load_image(content_dir=..., modalities=['T1', 'T2_FLAIR'], case_number=1003, mask_dir=None):
     """
     Load image data from NIfTI files.
 
@@ -14,96 +20,80 @@ def load_image(content_dir='../p1/raw/', modalities=['T1', 'T2_FLAIR'], case_num
     - content_dir: Directory containing image files.
     - modalities: List of modalities to load.
     - case_number: Case number for the specific image.
+    - mask_dir: Directory containing mask files.
 
     Returns:
     - x: Transposed array of flattened image data.
     - volumes: List of loaded image volumes.
+    - mask: Loaded mask volume.
     """
-    nii_file_dir = content_dir + str(case_number) + '/'
+    nii_file_dir = os.path.join(content_dir, str(case_number))
     x = []
     volumes = []
 
-    if len(modalities) != 0:
+    if modalities:
         for modality in modalities:
-            nii_file_path = nii_file_dir + modality + '.nii'
+            nii_file_path = os.path.join(nii_file_dir, f"{modality}.nii")
             volume = nib.load(nii_file_path)
             data = volume.get_fdata()
             volumes.append(data)
             flattened = data.reshape(-1)
             x.append(flattened)
     else:
+        nii_file_path = os.path.join(content_dir, str(case_number) + '.nii')
+        volume = nib.load(nii_file_path)
+        data = volume.get_fdata()
 
-        try:
-            nii_file_path= content_dir + str(case_number) + '/' + 'result.1.img'
-            volume = nib.load(nii_file_path)
-            data = volume.get_fdata()
-            volumes.append(data)
-            flattened = data.reshape(-1)
-            x.append(flattened)
+        nii_file_path = os.path.join(mask_dir, str(case_number) + '.nii')
+        mask_volume = nib.load(nii_file_path)
+        mask = mask_volume.get_fdata()
 
-        except Exception as e:
+        # Ensure stripped.
+        data *= mask
 
-            nii_file_path= content_dir + '/' + str(case_number) + '.nii'
-            volume = nib.load(nii_file_path)
-            data = volume.get_fdata()
-
-
-            nii_file_path= mask_dir + '/' + str(case_number) + '.nii'
-            mask_volume = nib.load(nii_file_path)
-            mask = mask_volume.get_fdata()
-            data *= mask
-            volumes.append(data)
-            flattened = data.reshape(-1)
-            x.append(flattened)
+        volumes.append(data)
+        flattened = data.reshape(-1)
+        x.append(flattened)
 
     return np.asarray(x).transpose(1, 0), volumes, mask
 
-def load_prob_maps(atlas='mira'):
+def load_pred(case, key='label_propagation', atlas='custom', mask= None):
+    """
+    Load predictions for a specific case.
 
-    volumes = []
-    probs = []
+    Parameters:
+    - case: Case identifier.
+    - key: Key indicating the type of prediction ('label_prop' by default).
+    - atlas: Atlas type ('custom' or 'mni') for probabilistic map loading.
+    - mask: Binary mask indicating brain regions.
 
-    if atlas == 'mira':
-        for i in range(1,4):
-            nii_file_path = 'probabilisticMap' + str(i) + '.nii'
-            volume = nib.load(nii_file_path)
-            data = volume.get_fdata()
-            volumes.append(data)
-            flattened = data.reshape(-1)
-            probs.append(data)
-    
-    
-    if atlas == 'mni':
-        for i in range(1,4):
-            # nii_file_path = 'probabilisticMap' +i + '.nii'
-            # volume = nib.load(nii_file_path)
-            # data = volume.get_fdata()
-            # volumes.append(data)
-            # flattened = data.reshape(-1)
-            # probs.append(flattened)
-            pass
-    
-    return probs
+    Returns:
+    - data: Loaded prediction data.
+    """
+    if key not in ['tissue_models', 'tissue_models_v_label_propagation']: key = atlas
+    if key == 'tissue_models': key = 'tissue'
+    else: key = 'custom_v_tissue'
+    nii_file_path = f'resultSet/{key}/resultLabels/{case}'
 
-def load_tissue_models():
-    
-    with open('tissueModel1.txt', 'r') as file:
-        tissue1 = [float(line.strip()) for line in file.readlines()]
-    with open('tissueModel2.txt', 'r') as file:
-        tissue2 = [float(line.strip()) for line in file.readlines()]
-    with open('tissueModel3.txt', 'r') as file:
-        tissue3 = [float(line.strip()) for line in file.readlines()]
+    pred_csf = nib.load(nii_file_path + '_CSF.nii').get_fdata()
+    # There's a mismatch in names, so I had to swap. 
+    pred_gm = nib.load(nii_file_path + '_WM.nii').get_fdata() 
+    pred_wm = nib.load(nii_file_path + '_GM.nii').get_fdata()
 
-    return np.array([tissue1, tissue2, tissue3])
+    if mask is not None: 
+        pred_csf *= mask
+        pred_gm *= mask
+        pred_wm *= mask
 
-def load_pred(case, key='label_prop'):
+    else: print("Warning! Pred may not be skull stripped!")  
 
-    nii_file_path = 'preds/' + key + '/' + case + '.nii'
-    volume = nib.load(nii_file_path)
-    data = volume.get_fdata()
-    # flattened = data.reshape(-1)    
-    
-    return data
+    # _ = multi_slice_viewer(pred_csf, title='init csf')  
+    # _ = multi_slice_viewer(pred_gm, title='init gm')   
+    # _ = multi_slice_viewer(pred_wm, title='init wm')   
+    # plt.show()
+
+    print("Succesfully loaded initial maps.")
+    return [pred_csf, pred_gm, pred_wm]
 
 
 def random_init_params(x, K):
@@ -125,14 +115,14 @@ def random_init_params(x, K):
 
     return a, mean, covariance
 
-def k_means_init_params(x, K, volumes, orig=None):
+def k_means_init_params(x, K, shape, orig=None):
     """
     Initialize parameters of the model using KMeans clustering.
 
     Parameters:
     - x: Input data.
     - K: Number of clusters.
-    - volumes: List of image volumes.
+    - shape: Shape of image volumes.
 
     Returns:
     - a: Initial weights.
@@ -147,7 +137,7 @@ def k_means_init_params(x, K, volumes, orig=None):
     for idx, clust in enumerate(range(K)):
         a[idx] = np.sum(label == clust) / label.shape[0]
 
-        cluster_mask = (label == clust).reshape(volumes[0].shape)
+        cluster_mask = (label == clust).reshape(shape)
         plt.subplot(1, K, idx + 1)
         plt.imshow(cluster_mask[:, :, cluster_mask.shape[2] // 2].T)
         plt.title(f'Cluster {clust}')
@@ -169,67 +159,40 @@ def k_means_init_params(x, K, volumes, orig=None):
 
     return a, mean, covariance
 
-def map_init_params(x, K, case, mode='tissue', tissue_maps=None, mask=None):
+def map_init_params(x, K, case, key, atlas=None, mask=None):
     """
-    Initialize parameters using label propagation segmentation.
+    Initialize parameters for Gaussian Mixture Model (GMM) using label propagation segmentation.
 
     Parameters:
     - x: Input data.
-    - K: Number of clusters.
+    - K: Number of clusters for GMM.
     - case: Case number for the specific image.
-    - mode: Segmentation mode ('tissue', 'label_prop', etc.).
-    - tissue_maps: List of tissue probability maps.
+    - key: Key indicating the type of prediction ('label_prop', etc.).
+    - atlas: Atlas type ('custom' or 'mni') for probabilistic map loading.
+    - mask: Binary mask indicating brain regions.
 
     Returns:
-    - a: Initial weights.
-    - mean: Initial means.
-    - covariance: Initial covariances.
+    - a: Initial weights for GMM components.
+    - mean: Initial means for GMM components.
+    - covariance: Initial covariances for GMM components.
     """
 
-    if tissue_maps is None:
-        prop_map = load_pred(case=case, key=mode)
-        
-    mean = []
-    covariance = []
-
-    # Initialize weights using percentage of points in each cluster
-    a = np.ones(K) / K
-    figs = []
+    # Load label propagation segmentation prediction
+    prop_map = load_pred(case, key, atlas, mask)
     
-    if not mask is None:
+    if mask is not None:
+        # Extract indices of brain regions from the mask
+        brain_mask = (mask != 0)
+        # Take only non-zero indices for the algorithm and convert to 1-D.
+        # Also rematch tissues by changing order, because there is a known mismatch.
+        prop_map[0], prop_map[1],  prop_map[2] = prop_map[0][brain_mask],  prop_map[1][brain_mask], prop_map[2][brain_mask]
 
-        # Ensure that prop_map is skull-stripped.
-        prop_map *= mask
+    else:
+        raise ValueError("Mask should be provided in this implementation!")
 
-        # Assign a brain mask to get indices.
-        brain_mask = (mask != 0) 
+    weight = np.array(prop_map).transpose(1, 0)
 
-        # Take only non-zero indices to the algorithm. 
-        pred = prop_map[brain_mask]
-
-        # print("Non-zero pred -->", pred.shape)
-
-    for idx, clust in enumerate([1, 2, 3]):
-
-        a[idx] = np.sum(prop_map == clust) / prop_map.size
-        # Extract data points for the current label
-        
-        label_data = x[pred == clust]
-        # figs.append(multi_slice_viewer(prop_map == clust, title=f'Cluster {clust}'))
-
-        # Calculate mean and covariance for the current label
-        label_mean = np.mean(label_data, axis=0)
-        label_covariance = np.cov(label_data, rowvar=False)
-
-        mean.append(label_mean)
-        covariance.append(label_covariance)
-
-    # plt.show()
-    # Convert lists to arrays
-    mean = np.array(mean)
-    covariance = np.array(covariance)
-
-    return a, mean, covariance
+    return maximization(x, weight), weight
 
 
 def log_likelihood(gmm_probs):
@@ -261,8 +224,6 @@ def expectation(a, mean, covariance, x, atlas = None, brain_mask = None):
     k = len(mean)
     gmm_probs = np.zeros((x.shape[0], k))
     weight = np.zeros((x.shape[0], k))
-
-    probabilistic_maps = None
 
     print("COV", covariance)
     print("MEAN", mean)
@@ -304,7 +265,7 @@ def maximization(x, weight):
 
     return a, mean, covariance
 
-def e_m_algorithm(x, volumes, K, init_mode='kmeans', max_iter=50, tol=1e-14, case_number=1, atlas = None, mask = None):
+def e_m_algorithm(x, volumes, K, patience=5, init_mode='kmeans', max_iter=100, tol=1e-12, case_number=1, atlas = None, mask = None, atlas_mode = 'into'):
     """
     EM algorithm for clustering.
 
@@ -321,73 +282,67 @@ def e_m_algorithm(x, volumes, K, init_mode='kmeans', max_iter=50, tol=1e-14, cas
     Returns:
     - weight: Final normalized weights.
     """
-    # print("Starting the algorithm...")
+    print("Starting the algorithm...")
     N = len(x)
     weight = np.zeros(shape=(N, K))
-    folder = f'{init_mode}-em-atlas-{atlas}' if atlas else f'{init_mode}-em'
-    # print(folder)
+    folder = f'atlas_{atlas_mode}_em_{init_mode}-{atlas}' if atlas_mode else f'em_{init_mode}'
+    print("Selected folder: ", folder)
+
+    # Ensure skull-stripping.
+    brain_mask = (mask != 0) 
+    for i, vol in enumerate(volumes):
+        volumes[i] = vol * brain_mask
 
     if init_mode == 'kmeans':
-        # print("kmeans!!!")
-        a, mean, covariance = k_means_init_params(x, K, volumes)
+        a, mean, covariance = k_means_init_params(x, K, shape=volumes[0].shape)
     elif init_mode == 'random':
-        # print("random!!!")
         a, mean, covariance = random_init_params(x, K)
-    elif init_mode in ['label_prop', 'tissue'] :
-        # print("label_prop or tissue!!!")
-        brain_mask = (mask != 0) 
-        volume = volumes[0]
-
-        x = np.expand_dims(volume[brain_mask], axis = 1)
-        # print("Non-zero x --> ", x.shape)
-        a, mean, covariance = map_init_params(x, K, case=case_number, mode=init_mode, mask = mask)
+    else:
+        x = np.expand_dims(volumes[0][brain_mask], axis = 1)
+        (a, mean, covariance), init_weight = map_init_params(x, K, case_number, init_mode, mask = mask, atlas=atlas)
 
     prev_ll = 0
+    counter = 0
     for _ in tqdm(range(max_iter)):
         weight = expectation(a, mean, covariance, x, atlas = atlas, brain_mask=brain_mask)
-        if atlas:
-            probabilistic_maps = load_prob_maps(atlas=atlas)
+        print("MASK SHAPE: ", mask.shape)
 
+        if atlas_mode == 'into':
             for clust in range(K):
-                weight[:, clust] *= probabilistic_maps[clust][brain_mask]
-        
+                weight[:, clust] *= init_weight[:, clust]
+                
         a, mean, covariance = maximization(x, weight)
         ll = log_likelihood(weight)
-        ll_diff = np.abs(ll - prev_ll)
 
-        print("ERR: ", ll)
-        if ll_diff < tol:
-            break
+        print("ERROR: ", ll)
 
+        if np.isclose(prev_ll, ll, atol=tol): counter += 1
+        else: counter = 0
+
+        if counter >= patience: break
         prev_ll = ll
 
+    if atlas_mode == 'after':
+        for clust in range(K):
+            weight[:, clust] *= init_weight[:, clust]
 
-
-    labels = (np.argmax(weight, axis=1))
-    # print("before", np.unique(labels, return_counts=True))
     labels = (np.argmax(weight, axis=1)+1)
-    # print("after", np.unique(labels, return_counts=True))
 
     if not mask is None:
         final_labels = mask.copy()
         background = (mask == 0)
-
         final_labels[brain_mask] = labels
-
         final_labels[final_labels == 0] = 1
-        
         final_labels[background] = 0
-
         labels = final_labels
         pass
     
-    # print("final", np.unique(labels, return_counts=True))
-    fig = multi_slice_viewer(labels, title='final')
-    plt.show()
+    # fig = multi_slice_viewer(labels, title='final')
+    # plt.show()
 
     nii_img = nib.Nifti1Image(labels, affine=np.eye(4), dtype=np.int8)
 
-    nib.save(nii_img, f'preds/{folder}/{case_number}.nii')
+    nib.save(nii_img, f'predictionSet/{folder}/{case_number}.nii')
 
     return weight
 
@@ -395,22 +350,11 @@ if __name__ == '__main__':
 
     import os
 
-    template = 'mira'
-
-    if template == 'mira':
-        content_dir = 'resultSet/param0009/resultImages_nii/'
-        mask_dir = 'resultSet/param0009/resultMask_nii/'
-        # content_dir = 'stripped/'
-        case_number_list = os.listdir(content_dir)
-    
-    elif template == 'MNI':
-        content_dir = 'resultSet(MNI)/param0009/resultImages_nii/'
-        mask_dir = 'resultSet(MNI)/param0009/resultMask_nii/'
-        # content_dir = 'stripped/'
-        case_number_list = os.listdir(content_dir)
-
+    content_dir = 'testingSet/testingStripped/'
+    mask_dir = 'testingSet/testingMask/'
+    case_number_list = os.listdir(content_dir)
 
     for i in tqdm(case_number_list):
         i = i.split(".nii")[0]
         x, volumes, mask_volume = load_image(content_dir=content_dir, modalities=[], case_number=i, mask_dir = mask_dir)
-        e_m_algorithm(x, volumes, K=3, init_mode='label_prop', case_number=i, atlas='mira', mask=mask_volume)
+        e_m_algorithm(x, volumes, K=3, init_mode='tissue_models', case_number=i, atlas='custom', atlas_mode='into', mask=mask_volume)
