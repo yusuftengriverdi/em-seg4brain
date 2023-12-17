@@ -58,4 +58,4 @@ def process_results(image_dir, label_dir, output_dir):
             print(f"Processed image '{image_basename}' saved to '{output_path}'")
 
 # Example usage
-process_results("resultSet/custom/resultImages", "resultSet/custom/resultLabels", "predictionSet/label_propagation")
+process_results("testingSet/testingStripped", "resultSet/mni/resultLabels", "predictionSet/label_propagation-mni")

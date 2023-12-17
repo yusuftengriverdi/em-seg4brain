@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Source directory containing images
-source_dir="registeredSet/custom/param0009/registeredImages"
+source_dir="registeredSet/mni/par0009/registeredImages"
 
 # Destination directory
-destination_dir="resultSet/custom/resultImages"
+destination_dir="resultSet/mni/resultImages"
 
 # Iterate over the images in the source directory
 for image_path in "$source_dir"/*/result.1.nii; do
@@ -28,10 +28,10 @@ done
 
 
 # Source directory containing images
-source_dir="registeredSet/custom/param0009/registeredLabels"
+source_dir="registeredSet/mni/par0009/registeredLabels"
 
 # Destination directory
-destination_dir="resultSet/custom/resultLabels"
+destination_dir="resultSet/mni/resultLabels"
 
 # Declare an associative array to map tissue types to names
 declare -A tissue_dict=(

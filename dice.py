@@ -29,7 +29,7 @@ def diceScore3dMask(seg, lab):
     Returns:
     - list: List of Dice scores for each label
     """
-    labels = [0, 1, 2, 3]
+    labels = [1, 2]
     
     max_dices = []
     for lab_label in labels:  
@@ -53,6 +53,19 @@ def diceScore3dMask(seg, lab):
         print(lab_label, max_label)
         max_dices.append(max_dice)
     
+
+    # Extract masks for the current labels
+    seg_mask = (seg == 3).astype("uint8")
+    lab_mask = (lab == 3).astype("uint8")
+    # Calculate intersection and union
+    intersection, union = intersectionUnionCounter(seg_mask, lab_mask)
+    
+    # Calculate Dice score
+    dice = 2 * intersection / (union + intersection)
+    
+    max_dices.append(dice)
+
+
     max_dices.append(np.mean(max_dices))
 
     return max_dices

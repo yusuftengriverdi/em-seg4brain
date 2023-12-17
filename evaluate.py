@@ -20,46 +20,46 @@ def readCases(numCase, setting):
     slice_id = 150
 
     # Visualization code (assuming it's correct)
-    # plt.set_cmap('gray')
-    # plt.subplot(2, 4, 1)
-    # plt.imshow((seg == 0)[:, slice_id, :])
-    # plt.title("Tissue 0 (Background)")
-    # plt.axis("off")
-    # plt.subplot(2, 4, 2)
-    # plt.imshow((seg == 1)[:, slice_id, :])
-    # plt.title("Tissue 1")
-    # plt.axis("off")
-    # plt.subplot(2, 4, 3)
-    # plt.imshow((seg == 2)[:, slice_id, :])
-    # plt.title("Tissue 2")
-    # plt.axis("off")
-    # plt.subplot(2, 4, 4)
-    # plt.imshow((seg == 3)[:, slice_id, :])
-    # plt.title("Tissue 3")
-    # plt.axis("off")
+    plt.set_cmap('gray')
+    plt.subplot(2, 4, 1)
+    plt.imshow((seg == 0)[:, slice_id, :])
+    plt.title("Tissue 0 (Background)")
+    plt.axis("off")
+    plt.subplot(2, 4, 2)
+    plt.imshow((seg == 1)[:, slice_id, :])
+    plt.title("Tissue 1")
+    plt.axis("off")
+    plt.subplot(2, 4, 3)
+    plt.imshow((seg == 2)[:, slice_id, :])
+    plt.title("Tissue 2")
+    plt.axis("off")
+    plt.subplot(2, 4, 4)
+    plt.imshow((seg == 3)[:, slice_id, :])
+    plt.title("Tissue 3")
+    plt.axis("off")
 
-    # plt.subplot(2, 4, 5)
-    # plt.imshow((lab == 0)[:, slice_id, :])
-    # plt.axis("off")
-    # plt.subplot(2, 4, 6)
-    # plt.imshow((lab == 1)[:, slice_id, :])
-    # plt.axis("off")
-    # plt.subplot(2, 4, 7)
-    # plt.imshow((lab == 2)[:, slice_id, :])
-    # plt.axis("off")
-    # plt.subplot(2, 4, 8)
-    # plt.imshow((lab == 3)[:, slice_id, :])
-    # plt.axis("off")
+    plt.subplot(2, 4, 5)
+    plt.imshow((lab == 0)[:, slice_id, :])
+    plt.axis("off")
+    plt.subplot(2, 4, 6)
+    plt.imshow((lab == 1)[:, slice_id, :])
+    plt.axis("off")
+    plt.subplot(2, 4, 7)
+    plt.imshow((lab == 2)[:, slice_id, :])
+    plt.axis("off")
+    plt.subplot(2, 4, 8)
+    plt.imshow((lab == 3)[:, slice_id, :])
+    plt.axis("off")
 
     return seg, lab
 
 def evaluateTissue(seg, mask):
     # Evaluates tissue using dice score
-    return diceScore3dMaskordered(seg, mask)
+    return diceScore3dMask(seg, mask)
 
 if __name__ == '__main__':
 
-    setting = 'atlas_into_em_label_propagation-custom'
+    setting = 'em_kmeans'
     # Set up the CSV file for logging
     log_file_path = f"dice_score_{setting}.csv"
 

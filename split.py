@@ -1,6 +1,7 @@
 import os
 import nibabel as nib
 import numpy as np
+from nilearn import image
 
 def split_and_save_nii(input_file, output_dir, target_img):
     """
@@ -26,13 +27,19 @@ def split_and_save_nii(input_file, output_dir, target_img):
         # Extract the ith slice
         single_slice = nii_array[:, :, :, i]
 
-        # Create a new NIfTI image
         new_nii = nib.Nifti1Image(single_slice, affine=target_img.affine, header=target_img.header)
+
+        # Create a new NIfTI image
+        resampled = image.resample_img(new_nii, target_affine=target_img.affine, 
+                                   target_shape=target_img.shape, 
+                                   interpolation='continuous')
+
+        # new_nii = nib.Nifti1Image(resampled, affine=target_img.affine, header=target_img.header)
 
         # Save the NIfTI image to the output directory
         output_file = os.path.join(output_dir, f"slice_{i+1}.nii")
 
-        nib.save(new_nii, output_file)
+        nib.save(resampled, output_file)
 
 if __name__ == "__main__":
     # Example usage

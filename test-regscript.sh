@@ -8,12 +8,12 @@ elastix_fixed_input_dir="testingSet/testingStripped/"
 
 transformix_input_dir_list=("referenceSpace/probabilisticMap1.nii" "referenceSpace/probabilisticMap2.nii" "referenceSpace/probabilisticMap3.nii")
 
-elastix_moving_input_dir="referenceSpace/template.nii"
-param_affine="params/Par0010affine.txt"
-param_elastic="params/Par0010bspline.txt"
+elastix_moving_input_dir="referenceSpace/manualTemplate.nii"
+param_affine="params/Par0009affine.txt"
+param_elastic="params/Par0009elastic.txt"
 
-elastix_output_dir="registeredSet/mni/param0010/registeredImages/"
-transformix_label_output_dir="registeredSet/mni/param0010/registeredLabels/"
+elastix_output_dir="registeredSet/mni/par0009/registeredImages/"
+transformix_label_output_dir="registeredSet/mni/par0009/registeredLabels/"
 
 
 # List of image filenames to process

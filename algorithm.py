@@ -70,10 +70,15 @@ def load_pred(case, key='label_propagation', atlas='custom', mask= None):
     Returns:
     - data: Loaded prediction data.
     """
-    if key not in ['tissue_models', 'tissue_models_v_label_propagation']: key = atlas
-    if key == 'tissue_models': key = 'tissue'
-    else: key = 'custom_v_tissue'
+    if key is None: key = atlas # In atlas mode.
+    elif key == 'label_propagation': key = atlas # Get label propagation of custom.
+    elif key == 'tissue_models': key = 'tissue' # Get tissue models as initialization.
+    else: key = 'custom_v_tissue' # Get custom label propagations times tissues as initialization.
+
+
     nii_file_path = f'resultSet/{key}/resultLabels/{case}'
+    
+    print("SELECTED INIT/ATLAS MAP --> ", nii_file_path)
 
     pred_csf = nib.load(nii_file_path + '_CSF.nii').get_fdata()
     # There's a mismatch in names, so I had to swap. 
@@ -95,6 +100,12 @@ def load_pred(case, key='label_propagation', atlas='custom', mask= None):
     print("Succesfully loaded initial maps.")
     return [pred_csf, pred_gm, pred_wm]
 
+
+def match_labels(a, mean, covariance):
+    # Get the sorted indices of 'a'
+    sorted_indices = np.argsort(a)
+    # Use the sorted indices to reorder statistics.
+    return a[sorted_indices], mean[sorted_indices], covariance[sorted_indices]
 
 def random_init_params(x, K):
     """
@@ -129,7 +140,7 @@ def k_means_init_params(x, K, shape, orig=None):
     - mean: Initial means.
     - covariance: Initial covariances.
     """
-    kmeans = KMeans(n_clusters=K)
+    kmeans = KMeans(n_clusters=K, n_init=10, max_iter=100)
     label = kmeans.fit_predict(x)
     center = kmeans.cluster_centers_
 
@@ -137,15 +148,15 @@ def k_means_init_params(x, K, shape, orig=None):
     for idx, clust in enumerate(range(K)):
         a[idx] = np.sum(label == clust) / label.shape[0]
 
-        cluster_mask = (label == clust).reshape(shape)
-        plt.subplot(1, K, idx + 1)
-        plt.imshow(cluster_mask[:, :, cluster_mask.shape[2] // 2].T)
-        plt.title(f'Cluster {clust}')
-        plt.axis('off')
+    #     cluster_mask = (label == clust).reshape(shape)
+    #     plt.subplot(1, K, idx + 1)
+    #     plt.imshow(cluster_mask[:, :, cluster_mask.shape[2] // 2].T)
+    #     plt.title(f'Cluster {clust}')
+    #     plt.axis('off')
 
-    plt.tight_layout()
-    plt.show()
-
+    # plt.tight_layout()
+    # plt.show()
+        
     mean = []
     covariance = []
     for clust in range(K):
@@ -159,7 +170,7 @@ def k_means_init_params(x, K, shape, orig=None):
 
     return a, mean, covariance
 
-def map_init_params(x, K, case, key, atlas=None, mask=None):
+def map_init_params(x, case, key, atlas, mask=None):
     """
     Initialize parameters for Gaussian Mixture Model (GMM) using label propagation segmentation.
 
@@ -207,7 +218,7 @@ def log_likelihood(gmm_probs):
     """
     return np.log(gmm_probs.sum(axis=1)).sum()
 
-def expectation(a, mean, covariance, x, atlas = None, brain_mask = None):
+def expectation(a, mean, covariance, x):
     """
     Expectation step of the EM algorithm.
 
@@ -293,25 +304,32 @@ def e_m_algorithm(x, volumes, K, patience=5, init_mode='kmeans', max_iter=100, t
     for i, vol in enumerate(volumes):
         volumes[i] = vol * brain_mask
 
+    x = np.expand_dims(volumes[0][brain_mask], axis = 1)
     if init_mode == 'kmeans':
         a, mean, covariance = k_means_init_params(x, K, shape=volumes[0].shape)
     elif init_mode == 'random':
         a, mean, covariance = random_init_params(x, K)
     else:
-        x = np.expand_dims(volumes[0][brain_mask], axis = 1)
-        (a, mean, covariance), init_weight = map_init_params(x, K, case_number, init_mode, mask = mask, atlas=atlas)
+        (a, mean, covariance), _ = map_init_params(x, case_number, init_mode, atlas=atlas, mask = mask)
+
+    if atlas is not None:
+        _, atlas_weight = map_init_params(x, case_number, key=None, atlas=atlas, mask=mask)  
 
     prev_ll = 0
     counter = 0
     for _ in tqdm(range(max_iter)):
-        weight = expectation(a, mean, covariance, x, atlas = atlas, brain_mask=brain_mask)
+        weight = expectation(a, mean, covariance, x)
         print("MASK SHAPE: ", mask.shape)
 
         if atlas_mode == 'into':
             for clust in range(K):
-                weight[:, clust] *= init_weight[:, clust]
+                weight[:, clust] *= atlas_weight[:, clust]
                 
         a, mean, covariance = maximization(x, weight)
+
+        if init_mode == 'kmeans':
+            a, mean, covariance = match_labels(np.array(a), np.array(mean), np.array(covariance))
+        
         ll = log_likelihood(weight)
 
         print("ERROR: ", ll)
@@ -324,7 +342,9 @@ def e_m_algorithm(x, volumes, K, patience=5, init_mode='kmeans', max_iter=100, t
 
     if atlas_mode == 'after':
         for clust in range(K):
-            weight[:, clust] *= init_weight[:, clust]
+            weight[:, clust] *= atlas_weight[:, clust]
+
+
 
     labels = (np.argmax(weight, axis=1)+1)
 
@@ -337,8 +357,8 @@ def e_m_algorithm(x, volumes, K, patience=5, init_mode='kmeans', max_iter=100, t
         labels = final_labels
         pass
     
-    # fig = multi_slice_viewer(labels, title='final')
-    # plt.show()
+    fig = multi_slice_viewer(labels, title='final')
+    plt.show()
 
     nii_img = nib.Nifti1Image(labels, affine=np.eye(4), dtype=np.int8)
 
@@ -357,4 +377,4 @@ if __name__ == '__main__':
     for i in tqdm(case_number_list):
         i = i.split(".nii")[0]
         x, volumes, mask_volume = load_image(content_dir=content_dir, modalities=[], case_number=i, mask_dir = mask_dir)
-        e_m_algorithm(x, volumes, K=3, init_mode='tissue_models', case_number=i, atlas='custom', atlas_mode='into', mask=mask_volume)
+        e_m_algorithm(x, volumes, K=3, init_mode='kmeans', case_number=i, atlas=None, atlas_mode=None, mask=mask_volume)
