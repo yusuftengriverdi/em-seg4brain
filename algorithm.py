@@ -357,8 +357,8 @@ def e_m_algorithm(x, volumes, K, patience=5, init_mode='kmeans', max_iter=100, t
         labels = final_labels
         pass
     
-    fig = multi_slice_viewer(labels, title='final')
-    plt.show()
+    # fig = multi_slice_viewer(labels, title='final')
+    # plt.show()
 
     nii_img = nib.Nifti1Image(labels, affine=np.eye(4), dtype=np.int8)
 
@@ -377,4 +377,4 @@ if __name__ == '__main__':
     for i in tqdm(case_number_list):
         i = i.split(".nii")[0]
         x, volumes, mask_volume = load_image(content_dir=content_dir, modalities=[], case_number=i, mask_dir = mask_dir)
-        e_m_algorithm(x, volumes, K=3, init_mode='kmeans', case_number=i, atlas=None, atlas_mode=None, mask=mask_volume)
+        e_m_algorithm(x, volumes, K=3, init_mode='tissue_models_v_label_propagation', case_number=i, atlas='custom', atlas_mode='into', mask=mask_volume)

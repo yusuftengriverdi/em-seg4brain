@@ -401,3 +401,4 @@ FodyWeavers.xsd
 referenceSpace/
 params/
 dice_score_*.csv
+figures/1003/*.nii
